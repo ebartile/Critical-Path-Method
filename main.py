@@ -67,34 +67,7 @@ def schedule_tasks(json_file, num_resources):
     # Calculate the total completion time by finding the maximum completion time across all resources
     total_completion_time = max(resource_availability.values())
 
-    return task_schedule, total_completion_time
-
-def visualize_schedule(schedule, num_resources):
-    # Extract task start times and resources
-    task_start_times = {task_id: info['start_time'] for task_id, info in schedule.items()}
-    resources = {info['resource'] for info in schedule.values()}
-    
-    # Create a plot for each resource
-    fig, axes = plt.subplots(len(resources), 1, figsize=(10, len(resources) * 2))
-    if len(resources) == 1:
-        axes = [axes]  # Ensure axes is a list for uniformity
-    
-    for i, resource in enumerate(sorted(resources)):
-        # Filter tasks assigned to the current resource
-        resource_tasks = {task_id: info for task_id, info in schedule.items() if info['resource'] == resource}
-        # Sort tasks by start time
-        sorted_tasks = sorted(resource_tasks.items(), key=lambda x: x[1]['start_time'])
-        
-        # Plot task timeline
-        axes[i].set_title(f"Resource {resource} Schedule")
-        axes[i].set_xlabel("Time")
-        axes[i].set_ylabel("Task")
-        for j, (task_id, info) in enumerate(sorted_tasks):
-            axes[i].barh(task_id, info['start_time'], info['start_time'] + data[task_id]['timeRequired'] - info['start_time'], left=info['start_time'])
-            axes[i].text(info['start_time'] + (data[task_id]['timeRequired'] - info['start_time']) / 2, j, f"{task_id}\n{info['start_time']:.1f}-{info['start_time'] + data[task_id]['timeRequired']:.1f}", ha='center', va='center')
-
-    plt.tight_layout()
-    plt.show()
+    return task_schedule, total_completion_time, data
 
 if __name__ == "__main__":
     # Check if the correct number of arguments is provided
@@ -107,9 +80,28 @@ if __name__ == "__main__":
     num_resources = int(sys.argv[2])
 
     # Call the schedule_tasks function with the provided arguments
-    schedule, completion_time = schedule_tasks(json_file, num_resources)
+    schedule, completion_time, data = schedule_tasks(json_file, num_resources)
     # Print the task schedule and total completion time
     print("Task Schedule:")
     print(json.dumps(schedule, indent=2))
     print("Total Completion Time:", completion_time)
-    visualize_schedule(schedule, num_resources)
+
+    # Plotting the Gantt chart
+    fig, ax = plt.subplots()
+
+    for task_id, task_info in schedule.items():
+        start_time = task_info['start_time']
+        duration = data[task_id]['timeRequired']
+        resource = task_info['resource']
+        ax.barh(task_id, duration, left=start_time, align='center', color='blue', alpha=0.6)
+        ax.text(start_time + duration / 2, task_id, f'Resource {resource}', ha='center', va='center', color='black')
+
+    ax.set_xlabel('Time')
+    ax.set_ylabel('Task')
+    ax.set_title('Task Schedule')
+    ax.set_yticks(range(len(schedule)))
+    ax.set_yticklabels(schedule.keys())
+    ax.grid(True)
+    ax.invert_yaxis()  # Invert Y-axis to have Task 1 at the top
+
+    plt.show()
